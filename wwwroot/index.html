@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        #fileInput {
+            margin: 20px 0;
+            padding: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+            button:hover {
+                background-color: #45a049;
+            }
+
+        progress {
+            margin-top: 20px;
+            width: 300px;
+            height: 20px;
+            appearance: none;
+        }
+
+            progress::-webkit-progress-bar {
+                background-color: #eee;
+                border-radius: 10px;
+            }
+
+            progress::-webkit-progress-value {
+                background-color: #4CAF50;
+                border-radius: 10px;
+            }
+
+        #statusText {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h2>Upload a File</h2>
+    <input type="file" id="fileInput" />
+    <br />
+    <button onclick="uploadFile()">Upload</button>
+    <br />
+    <progress id="progressBar" value="0" max="100"></progress>
+    <div id="statusText"></div>
+
+    <script>
+        function uploadFile() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) {
+                alert("Please select a file.");
+                return;
+            }
+
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            formData.append("file", file);
+
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    document.getElementById('progressBar').value = (e.loaded / e.total) * 100;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    pollStatus(response.processingId);
+                } else {
+                    document.getElementById('statusText').innerText = "Upload failed: " + xhr.responseText;
+                }
+            };
+
+            xhr.open("POST", "/upload/upload");
+            xhr.send(formData);
+        }
+
+        function pollStatus(id) {
+            const interval = setInterval(() => {
+                fetch(`/upload/status/${id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('statusText').innerText = "Status: " + data.status;
+                        if (["Completed", "Failed", "VirusDetected"].includes(data.status)) {
+                            clearInterval(interval);
+                        }
+                    });
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
